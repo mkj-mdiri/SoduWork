@@ -8,6 +8,7 @@ const file = new URL('../src/screens/Overview.jsx', import.meta.url)
 const dependencies = {
   '../api.js': { api: {}, can: () => true },
   '../ui.jsx': {}, './overview.css': {}, './requirement-governance.js': governance,
+  './FirstRunSetup.jsx': { default: () => null },
 }
 
 test('built-in source types switch languages while external names remain verbatim', async (t) => {

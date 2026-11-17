@@ -22,6 +22,38 @@ from app.services import device_auth, model_config_guard, runtime_images, ai_exe
 
 
 class CapabilityTests(IsolatedDatabase):
+    async def test_first_run_setup_requires_verified_org_model_and_stays_complete(self):
+        from app.api import first_run_setup
+        self.app.include_router(first_run_setup.router)
+        path = "/api/v1/admin/first-run-setup"
+        headers = self.headers["admin"]
+        async with self.sessions() as session, session.begin():
+            member = await session.get(Client, "a")
+            member.model_keys = {}
+            (await session.get(ModelProvider, "p")).enabled = False
+        self.assertEqual((await self.http.get(path, headers=headers)).json()["stage"], "connect")
+        async with self.sessions() as session, session.begin():
+            (await session.get(ModelProvider, "p")).enabled = True
+        self.assertGreaterEqual((await self.http.get(path, headers=self.headers["a"])).status_code, 400)
+        before = (await self.http.get(path, headers=headers)).json()
+        self.assertEqual(before["stage"], "test")
+        body = {"modelId": before["modelId"], "configRevision": before["models"][0]["configRevision"]}
+        self.assertEqual((await self.http.put(path, headers=headers, json=body)).status_code, 409)
+        self.mode = "private-error"
+        self.assertFalse((await self.check("admin", ["connection"])).json()["ok"])
+        self.assertEqual((await self.http.get(path, headers=headers)).json()["stage"], "test")
+        self.mode = "ok"
+        self.assertTrue((await self.check("admin", ["connection"])).json()["ok"])
+        self.assertEqual((await self.http.get(path, headers=headers)).json()["stage"], "default")
+        response = await self.http.put(path, headers=headers, json=body)
+        self.assertEqual(response.status_code, 200, response.text)
+        member = (await self.http.get("/api/v1/my-models", headers=self.headers["a"])).json()
+        self.assertEqual(member["defaultModel"], "model")
+        self.assertEqual(member["usable"][0]["keyFrom"], "org")
+        async with self.sessions() as session, session.begin():
+            (await session.get(ModelProvider, "p")).enabled = False
+        self.assertEqual((await self.http.get(path, headers=headers)).json(), {"stage": "complete"})
+
     async def test_admin_model_edit_persists_capabilities_and_rejects_conflicting_limits(self):
         from app.api import admin
         self.app.include_router(admin.router)

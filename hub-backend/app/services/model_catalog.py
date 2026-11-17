@@ -448,6 +448,9 @@ async def catalog(session: AsyncSession, client=None) -> dict:
     return {"providers": [_p_api(p) for p in ps], "models": rows}
 
 
+MEMBER_DEFAULT_KEY = "first_run_member_default_model"
+
+
 async def usable(session: AsyncSession, client=None, modality: str = "chat") -> list[dict]:
     """Return models usable by this client, checking model visibility, enabled provider, endpoint,
     and required credentials. Prefer personal credentials over organization credentials and
@@ -500,6 +503,10 @@ async def usable(session: AsyncSession, client=None, modality: str = "chat") -> 
                     "config": model_config(c.get("config"), wanted),
                     "note": "我自己加的", "providerName": p["name"], "providerKind": p["kind"],
                     "keyFrom": key_from, "own": True})
+    if client is not None and wanted == "chat" and out:
+        default = await session.get(models.AppSetting, MEMBER_DEFAULT_KEY)
+        if default and default.value:
+            out.sort(key=lambda row: row["id"] != default.value)
     return await model_capabilities.enrich(session, out, ps, client)
 
 

@@ -357,6 +357,8 @@ export const api = {
     { nodeKey, resumeRework: !!options.resumeRework }),
   /* Separate provider credentials from models; secrets are write-only. */
   modelCatalog: () => call('GET', '/admin/model-catalog'),
+  firstRunSetup: () => call('GET', '/admin/first-run-setup'),
+  finishFirstRunSetup: (body) => call('PUT', '/admin/first-run-setup', body),
   checkModelCapabilities: (body) => call('POST', '/admin/model-capabilities/check', body, 140000),
   saveModelProvider: (pid, b) => call('PUT', '/admin/model-providers/' + encodeURIComponent(pid), b),
   deleteModelProvider: (pid, revision) => call('DELETE', '/admin/model-providers/' + encodeURIComponent(pid) + '?expectedRevision=' + encodeURIComponent(revision)),
