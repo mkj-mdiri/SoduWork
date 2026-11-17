@@ -42,6 +42,7 @@ async function mountScreen(t, name) {
     dependencies: {
       '../api.js': { api, can: () => true },
       './requirement-governance.js': requirementGovernance,
+      './FirstRunSetup.jsx': { default: () => null },
       './operations-copy.js': operationsCopy,
       './insights-metrics.js': insightsMetrics,
       '../ui.jsx': { AUTO: 5000, Icon: 'Icon', Modal: 'Modal', Loading: 'Loading', ErrorState: 'ErrorState',

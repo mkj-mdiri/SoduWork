@@ -4,6 +4,7 @@ import { api, can } from '../api.js'
 import { useViewportHeight } from '../viewport-height.js'
 import { useAsync, Loading, ErrorState, AUTO, Icon, navTo } from '../ui.jsx'
 import './overview.css'
+import FirstRunSetup from './FirstRunSetup.jsx'
 import { requirementSummary, requirementStage, hasExecutionIssue, isOverdue } from './requirement-governance.js'
 
 const COLORS = ['var(--c-blue)', 'var(--c-green)', 'var(--c-orange)', 'var(--c-rose)', 'var(--offline)']
@@ -120,6 +121,7 @@ export default function Overview() {
   const onlineRate = cl.length ? Math.round(online / cl.length * 100) : 0
   return (
     <section className="gov-page">
+      {mayManageIntegrations && <FirstRunSetup />}
       <div className="gov-ledger" aria-label={tx("核心治理指标")}>
         <Metric label={tx("需求池")} value={tk.length} note={tx("待整理与澄清 {0} · 已关闭 {1}", [summary.preparing, summary.closed])} />
         <Metric label={tx("需求交付率")} value={rate + '%'} note={tx("{0} / {1} 已交付，不含已关闭", [done, tk.length])} tone="good" />
