@@ -1,4 +1,6 @@
 export default {
+  '开始协作前，请先完成设置': 'Finish setup to start collaborating',
+  '请输入 API Key 和模型 ID': 'Enter the API key and model ID.',
   '准备好你的 SoduWork 工作空间': 'Get your SoduWork workspace ready',
   '接入并验证一个模型，让团队成员登录后就能开始协作。': 'Connect and test a model so your team can get to work after signing in.',
   '开始配置': 'Start setup',
@@ -21,10 +23,11 @@ export default {
   '连接模型': 'Connect a model',
   '测试连接': 'Test the connection',
   '设为默认': 'Set the default',
-  '接入新模型': 'Connect a new model',
   'OpenAI 兼容接口地址': 'OpenAI-compatible endpoint',
   '模型 ID': 'Model ID',
-  '使用范围：连接到此 Hub 的成员。已配置个人默认模型的成员将继续使用自己的选择。': 'Applies to members of this Hub. Members with a personal default model keep their selection.',
+  '已通过测试': 'Test passed',
+  '待测试': 'Needs testing',
+  '测试通过后，可将模型设为此 Hub 成员的默认模型。成员已有的个人默认模型会继续生效。': 'After a model passes the test, you can set it as the default for Hub members. Members keep any personal defaults they have already set.',
   '稍后设置': 'Set up later',
   '保存并测试': 'Save and test',
 }

@@ -29,17 +29,19 @@ async def get_setup(session: AsyncSession = Depends(get_session)):
     if saved and saved.value:
         return {"stage": "complete"}
     models = await model_catalog.usable(session)
+    verified_models = [row for row in models if verified(row)]
+    candidates = verified_models or models
     legacy = await session.get(AppSetting, "llm_model")
-    preferred = next((row for row in models if legacy and row["name"] == legacy.value), None)
-    recent = max(models, key=lambda row: connection_check(row).get("checkedAt", ""), default=None)
+    preferred = next((row for row in candidates if legacy and row["name"] == legacy.value), None)
+    recent = max(candidates, key=lambda row: connection_check(row).get("checkedAt", ""), default=None)
     model = recent if recent and connection_check(recent) else preferred or recent
     return {
-        "stage": "default" if model and verified(model) else "test" if model else "connect",
+        "stage": "default" if verified_models else "test" if model else "connect",
         "modelId": model["id"] if model else None,
         "models": [
             {key: row[key] for key in ("id", "providerId", "name", "label", "configRevision")}
             | {"verified": verified(row)}
-            for row in models
+            for row in candidates
         ],
     }
 

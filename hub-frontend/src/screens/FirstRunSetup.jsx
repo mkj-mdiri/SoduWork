@@ -19,6 +19,7 @@ export default function FirstRunSetup() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [editingKey, setEditingKey] = useState(false)
 
   async function refresh() {
     const next = await api.firstRunSetup()
@@ -39,6 +40,10 @@ export default function FirstRunSetup() {
 
   async function advance(event) {
     event.preventDefault()
+    if (stage === 'connect' && (!fields.apiKey.trim() || !fields.name.trim())) {
+      setError(tx('请输入 API Key 和模型 ID'))
+      return
+    }
     setBusy(true)
     setError('')
     try {
@@ -64,8 +69,9 @@ export default function FirstRunSetup() {
       }
       const result = await api.checkModelCapabilities({ providerId: service, model: name, checks: ['connection'] })
       if (!result.ok) throw new Error(tx('模型未通过测试。请核对接口地址、API Key 和模型 ID 后重试。'))
-      await refresh()
-      setSelected(service + ':' + name)
+        const next = await refresh()
+        const tested = next.models?.find(row => row.providerId === service && row.name === name && row.verified)
+        if (tested) setSelected(tested.id)
       setFields(current => ({ ...current, apiKey: '' }))
     } catch (err) {
       setError(err.message)
@@ -79,6 +85,7 @@ export default function FirstRunSetup() {
     setOpen(false)
     setError('')
     setNotice('')
+    setEditingKey(false)
     setFields(current => ({ ...current, apiKey: '' }))
     if (state.stage !== 'complete') refresh().catch(() => {})
   }
@@ -95,8 +102,12 @@ export default function FirstRunSetup() {
 
   return <>
     {card && <aside className="first-run-card" aria-labelledby="first-run-title">
-      <div><h2 id="first-run-title">{tx(card[0])}</h2><p>{tx(card[1], [cardModel?.label || cardModel?.name || ''])}</p></div>
-      <button className="btn btn-primary" onClick={() => setOpen(true)}>{tx(card[2])}</button>
+      <div>
+        <p className="first-run-kicker">{tx('开始协作前，请先完成设置')}</p>
+        <h2 id="first-run-title">{tx(card[0])}</h2>
+        <p>{tx(card[1], [cardModel?.label || cardModel?.name || ''])}</p>
+      </div>
+      <button className="btn btn-primary first-run-start" onClick={() => setOpen(true)}>{tx(card[2])}<span aria-hidden="true"> →</span></button>
     </aside>}
     {open && <Modal title={stage === 'complete' ? tx('你的 SoduWork 工作空间已就绪') : tx(copy.connect[0])} onClose={close}>
       {stage === 'complete' ? <>
@@ -107,31 +118,52 @@ export default function FirstRunSetup() {
           <button className="btn btn-primary" onClick={close}>{tx('返回首页')}</button>
         </div>
         {notice && <p role="status">{notice}</p>}
-      </> : <form className="first-run-form" onSubmit={advance}>
+      </> : <form className="first-run-form" autoComplete="off" onSubmit={advance}>
         <ol className="first-run-progress">
-          {Object.entries({ connect: '连接模型', test: '测试连接', default: '设为默认' }).map(([step, label]) =>
-            <li key={step} aria-current={stage === step ? 'step' : undefined}>{tx(label)}</li>)}
+          {Object.entries({ connect: '连接模型', test: '测试连接', default: '设为默认' }).map(([step, label], index) =>
+            <li key={step} aria-current={stage === step ? 'step' : undefined}>
+              <span className="first-run-step-number" aria-hidden="true">{index + 1}</span>
+              {tx(label)}
+            </li>)}
         </ol>
-        {state.models?.length > 0 && <label>{tx('对话模型')}
-          <select className="f-in" disabled={busy} value={selected} onChange={event => { setSelected(event.target.value); setError('') }}>
-            {state.models.map(row => <option key={row.id} value={row.id}>{row.label || row.name} ({row.providerId})</option>)}
-            <option value="">{tx('接入新模型')}</option>
-          </select>
-        </label>}
-        {stage === 'connect' && [
-          ['baseUrl', 'OpenAI 兼容接口地址', 'url'],
-          ['apiKey', 'API Key', 'password'],
-          ['name', '模型 ID', 'text'],
-        ].map(([field, label, type]) => <label key={field}>{tx(label)}
-          <input className="f-in" required type={type} autoComplete="off" disabled={busy} value={fields[field]}
-            onChange={event => setFields({ ...fields, [field]: event.target.value })} />
-        </label>)}
-        {stage === 'test' && <p>{tx(copy.test[1], [model.label || model.name])}</p>}
-        {stage === 'default' && <p>{tx('使用范围：连接到此 Hub 的成员。已配置个人默认模型的成员将继续使用自己的选择。')}</p>}
+        {state.models?.length === 1 && <div className="first-run-model">
+          <span>{tx('模型 ID')}</span>
+          <div className="first-run-model-value">
+            <span>{model?.name}</span>
+            <span className="first-run-model-status">{tx(model?.verified ? '已通过测试' : '待测试')}</span>
+          </div>
+        </div>}
+        {state.models?.length > 1 && <fieldset className="first-run-model first-run-model-choices" disabled={busy}>
+          <legend>{tx('模型 ID')}</legend>
+          {state.models.map(row => <label className="first-run-model-value" key={row.id}>
+            <input type="radio" name="first-run-model" checked={row.id === selected}
+              onChange={() => { setSelected(row.id); setError('') }} />
+            <span>{row.name}</span>
+            <span className="first-run-model-status">{tx(row.verified ? '已通过测试' : '待测试')}</span>
+          </label>)}
+        </fieldset>}
+        {stage === 'connect' && <>
+          <label>{tx('OpenAI 兼容接口地址')}
+            <input className="f-in" required type="url" disabled={busy} value={fields.baseUrl}
+              onChange={event => setFields({ ...fields, baseUrl: event.target.value })} />
+          </label>
+          <label>{tx('API Key')}
+            <input className="f-in" required type="password" name="model-service-api-key" autoComplete="new-password"
+              readOnly={!editingKey} disabled={busy} value={fields.apiKey}
+              onFocus={() => setEditingKey(true)} onBlur={() => setEditingKey(false)}
+              onChange={event => setFields({ ...fields, apiKey: event.target.value })} />
+          </label>
+          <label>{tx('模型 ID')}
+            <textarea className="f-in first-run-model-id" required rows={1} name="model-service-id" spellCheck={false}
+              disabled={busy} value={fields.name}
+              onChange={event => setFields({ ...fields, name: event.target.value.replace(/[\r\n]/g, '') })} />
+          </label>
+        </>}
+        {model && <p>{tx('测试通过后，可将模型设为此 Hub 成员的默认模型。成员已有的个人默认模型会继续生效。')}</p>}
         {error && <p role="alert">{error}</p>}
         <div className="first-run-actions">
           <button type="button" className="btn btn-ghost" disabled={busy} onClick={close}>{tx('稍后设置')}</button>
-          <button className="btn btn-primary" disabled={busy}>{busy ? tx('正在处理…') : tx(stage === 'connect' ? '保存并测试' : copy[stage][2])}</button>
+          <button className="btn btn-primary first-run-advance" disabled={busy}>{busy ? tx('正在处理…') : tx(stage === 'connect' ? '保存并测试' : copy[stage][2])}</button>
         </div>
       </form>}
     </Modal>}

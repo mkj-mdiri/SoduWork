@@ -44,7 +44,11 @@ class CapabilityTests(IsolatedDatabase):
         self.assertEqual((await self.http.get(path, headers=headers)).json()["stage"], "test")
         self.mode = "ok"
         self.assertTrue((await self.check("admin", ["connection"])).json()["ok"])
-        self.assertEqual((await self.http.get(path, headers=headers)).json()["stage"], "default")
+        async with self.sessions() as session, session.begin():
+            session.add(ModelDef(id="p:other", provider_id="p", name="other"))
+        setup = (await self.http.get(path, headers=headers)).json()
+        self.assertEqual(setup["stage"], "default")
+        self.assertEqual([row["id"] for row in setup["models"]], ["p:model"])
         response = await self.http.put(path, headers=headers, json=body)
         self.assertEqual(response.status_code, 200, response.text)
         member = (await self.http.get("/api/v1/my-models", headers=self.headers["a"])).json()
